@@ -49,7 +49,7 @@ services:
     volumes:
       - replica_data:/var/lib/postgresql
       - ./db/start-replica.sh:/replica/start.sh:ro
-    entrypoint: ["bash", "/replica/start.sh"]
+    entrypoint: ["bash", "-c", "tr -d '\\r' < /replica/start.sh > /tmp/start.sh && exec bash /tmp/start.sh"]
     depends_on:
       db:
         condition: service_healthy
