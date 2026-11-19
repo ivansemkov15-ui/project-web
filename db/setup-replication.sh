@@ -3,8 +3,11 @@ set -e
 
 psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
     -v replication_password="$REPLICATION_PASSWORD" <<'SQL'
-CREATE ROLE replicator WITH LOGIN REPLICATION PASSWORD :'replication_password';
+SELECT format('CREATE ROLE replicator WITH LOGIN REPLICATION PASSWORD %L', :'replication_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'replicator')
+\gexec
 SQL
 
-printf '\nhost replication replicator all scram-sha-256\n' >> "$PGDATA/pg_hba.conf"
+line='host replication replicator all scram-sha-256'
+grep -qxF "$line" "$PGDATA/pg_hba.conf" || printf '%s\n' "$line" >> "$PGDATA/pg_hba.conf"
 pg_ctl -D "$PGDATA" reload
