@@ -17,7 +17,7 @@ def groups_list():
 @groups_api.post("/api/groups")
 @require_auth()
 def groups_create():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "JSON object is required"}), 400
     name = data.get("name")
