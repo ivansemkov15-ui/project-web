@@ -35,7 +35,7 @@ def analytics():
         return jsonify({"source": "fallback", "data": {**data, "groups_count": len(data["groups"])}})
 
 
-@stats_api.get("/api/hash/<value>")
+@stats_api.get("/api/hash/<path:value>")
 def hash_string(value):
     try:
         response = requests.get(
