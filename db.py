@@ -160,7 +160,7 @@ def get_statistics(user_id):
     )["count"]
     groups = query(
         "SELECT g.name, COUNT(c.id) AS count "
-        "FROM groups g LEFT JOIN contacts c ON c.group_id = g.id "
+        "FROM groups g LEFT JOIN contacts c ON c.group_id = g.id AND c.user_id = g.user_id "
         "WHERE g.user_id = %s GROUP BY g.id, g.name ORDER BY g.name",
         (user_id,),
     )
