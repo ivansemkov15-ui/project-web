@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: phonebook
+      POSTGRES_USER: phonebook
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-phonebook}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replication_dev_password}
+    command: ["postgres", "-c", "wal_level=replica", "-c", "max_wal_senders=5"]
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./db/setup-replication.sh:/docker-entrypoint-initdb.d/02-replication.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phonebook -d phonebook"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  supporting:
+    build: .
+    command: uvicorn supporting_api:app --host 0.0.0.0 --port 8001
+    ports:
+      - "127.0.0.1:8001:8001"
+
+  core:
+    build: .
+    command: python app.py
+    environment:
+      DATABASE_URL: postgresql://phonebook:${DB_PASSWORD:-phonebook}@db:5432/phonebook
+      SUPPORTING_URL: http://supporting:8001
+      JWT_SECRET: ${JWT_SECRET:-development-secret-change-me}
+    ports:
+      - "127.0.0.1:5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+      supporting:
+        condition: service_started
+
+  db-replica:
+    image: postgres:18
+    profiles: [replication]
+    environment:
+      PGDATA: /var/lib/postgresql/18/docker
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replication_dev_password}
+    volumes:
+      - replica_data:/var/lib/postgresql
+      - ./db/start-replica.sh:/replica/start.sh:ro
+    entrypoint: ["bash", "/replica/start.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  replica_data:

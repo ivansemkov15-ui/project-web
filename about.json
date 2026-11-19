@@ -1,0 +1,8 @@
+{
+  "name": "Телефонный справочник",
+  "description": "Учебное Full Stack веб-приложение для управления личными контактами и группами.",
+  "architecture": "Presentation / Business Logic / Data Access and Storage",
+  "core": "Flask",
+  "supporting": "FastAPI",
+  "database": "PostgreSQL"
+}
