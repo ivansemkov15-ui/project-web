@@ -27,6 +27,19 @@ def test_unauthorized_contacts(client):
     assert response.status_code == 401
 
 
+def test_invalid_json(client):
+    response = client.post("/api/auth/register", json=[])
+    assert response.status_code == 400
+
+    token = create_token(1)
+    response = client.post(
+        "/api/groups",
+        json=[],
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 400
+
+
 def test_registration(client, monkeypatch):
     monkeypatch.setattr(db, "create_user", lambda name, password_hash: {"id": 1, "user_name": name})
     response = client.post(
@@ -88,6 +101,9 @@ def test_supporting_service():
         "request": "hello",
         "result": hashlib.sha256(b"hello").hexdigest(),
     }
+    response = client.get("/api/hash/a%2Fb")
+    assert response.json()["request"] == "a/b"
+
     response = client.post("/api/summary", json={
         "total_contacts": 2,
         "groups": [{"name": "Friends", "count": 2}],
