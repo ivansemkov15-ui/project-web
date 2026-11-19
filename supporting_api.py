@@ -1,10 +1,11 @@
 import hashlib
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel
 
 
 app = FastAPI(title="Phonebook Supporting Service")
+router = APIRouter()
 
 
 class GroupCount(BaseModel):
@@ -18,18 +19,18 @@ class Statistics(BaseModel):
     without_group: int
 
 
-@app.get("/health")
+@router.get("/health")
 def health():
     return {"status": "ok", "service": "supporting"}
 
 
-@app.get("/api/hash/{value}")
+@router.get("/api/hash/{value:path}")
 def hash_string(value: str):
     result = hashlib.sha256(value.encode("utf-8")).hexdigest()
     return {"request": value, "result": result}
 
 
-@app.post("/api/summary")
+@router.post("/api/summary")
 def summary(data: Statistics):
     return {
         "total_contacts": data.total_contacts,
@@ -37,3 +38,6 @@ def summary(data: Statistics):
         "without_group": data.without_group,
         "groups_count": len(data.groups),
     }
+
+
+app.include_router(router)
