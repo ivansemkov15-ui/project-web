@@ -11,7 +11,7 @@ auth_api = Blueprint("auth_api", __name__)
 
 @auth_api.post("/api/auth/register")
 def register():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "JSON object is required"}), 400
     user_name = data.get("user_name")
