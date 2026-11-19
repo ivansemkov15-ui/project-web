@@ -7,9 +7,9 @@ from psycopg.rows import dict_row
 def query(sql, params=(), one=False):
     database_url = os.getenv(
         "DATABASE_URL",
-        "postgresql://phonebook:phonebook@localhost:5432/phonebook",
+        "postgresql://phonebook:phonebook@127.0.0.1:5432/phonebook",
     )
-    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+    with psycopg.connect(database_url, row_factory=dict_row, connect_timeout=5) as connection:
         with connection.cursor() as cursor:
             cursor.execute(sql, params)
             if cursor.description is None:
