@@ -116,3 +116,38 @@ def test_jwt_contains_user_id():
     token = create_token(15)
     payload = jwt.decode(token, "development-secret-change-me", algorithms=["HS256"])
     assert payload["sub"] == "15"
+
+
+def test_contacts_crud(client, monkeypatch):
+    user_id = 1
+    contact = {"id": 5, "name": "Anna", "phone": "123", "group_id": None}
+    monkeypatch.setattr(db, "group_exists", lambda user_id, group_id: True)
+    monkeypatch.setattr(db, "create_contact", lambda user_id, name, phone, group_id: {"id": 5})
+    monkeypatch.setattr(db, "get_contact", lambda user_id, contact_id: contact)
+    monkeypatch.setattr(db, "update_contact", lambda user_id, contact_id, changes: {"id": 5})
+    monkeypatch.setattr(db, "delete_contact", lambda user_id, contact_id: True)
+
+    headers = {"Authorization": f"Bearer {create_token(user_id)}"}
+    response = client.post("/api/contacts", json={"name": "Anna", "phone": "123"}, headers=headers)
+    assert response.status_code == 201
+    assert response.json["name"] == "Anna"
+
+    response = client.get("/api/contacts/5", headers=headers)
+    assert response.status_code == 200
+
+    response = client.put("/api/contacts/5", json={"phone": "456"}, headers=headers)
+    assert response.status_code == 200
+
+    response = client.delete("/api/contacts/5", headers=headers)
+    assert response.status_code == 204
+
+
+def test_reject_other_users_group(client, monkeypatch):
+    monkeypatch.setattr(db, "group_exists", lambda user_id, group_id: False)
+    headers = {"Authorization": f"Bearer {create_token(1)}"}
+    response = client.post(
+        "/api/contacts",
+        json={"name": "Anna", "phone": "123", "group_id": 42},
+        headers=headers,
+    )
+    assert response.status_code == 400
