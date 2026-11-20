@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Статистика — Телефонный справочник</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.9/dist/css/bootstrap.min.css" integrity="sha384-yEPZ7jP9S0QKiUQ0m3jjsO4ProIW7wvR9gXkI7JOGa2XVsw53Yke2bsdkBbjmmiX" crossorigin="anonymous">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="bg-body-tertiary">
+    <header class="bg-white border-bottom">
+        <nav class="container d-flex flex-wrap align-items-center justify-content-between gap-3 py-3" aria-label="Основная навигация">
+            <a class="navbar-brand fw-semibold" href="/">Телефонный справочник</a>
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <a href="/">Контакты</a>
+                <a href="/dashboard" aria-current="page">Статистика</a>
+                <a href="/static/profile.html">Профиль</a>
+                <button id="logout" class="btn btn-outline-secondary btn-sm" type="button">Выйти</button>
+            </div>
+        </nav>
+    </header>
+
+    <main id="dashboard-area" class="container py-4" hidden>
+        <h1 class="h3 mb-3">Статистика</h1>
+        <div id="message" class="alert" role="status" hidden></div>
+        <p id="contact-total" role="status">Загрузка статистики…</p>
+        <section class="card card-body" aria-labelledby="chart-title">
+            <h2 id="chart-title" class="h5 mb-3">Контакты по группам</h2>
+            <p id="empty-chart" class="text-body-secondary mb-0" hidden>Контактов пока нет.</p>
+            <div id="chart-box" class="position-relative" hidden>
+                <canvas id="group-chart" role="img" aria-label="Контакты по группам"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+    <script type="module" src="/static/dashboard.js"></script>
+</body>
+</html>
