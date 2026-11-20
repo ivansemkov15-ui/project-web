@@ -1,0 +1,16 @@
+[hidden] {
+    display: none !important;
+}
+
+.auth-panel {
+    max-width: 48rem;
+    margin-inline: auto;
+}
+
+.profile-panel {
+    max-width: 28rem;
+}
+
+.navbar-brand {
+    white-space: normal;
+}
