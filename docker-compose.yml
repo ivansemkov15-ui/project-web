@@ -1,0 +1,46 @@
+name: phonebook-database
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: phonebook
+      POSTGRES_USER: phonebook
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:?Set REPLICATION_PASSWORD in .env}
+    command: ["postgres", "-c", "wal_level=replica", "-c", "max_wal_senders=5"]
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./db/setup-replication.sh:/docker-entrypoint-initdb.d/02-replication.sh:ro
+      - ./db/setup-app-role.sh:/docker-entrypoint-initdb.d/03-app-role.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phonebook -d phonebook"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  db-replica:
+    image: postgres:18
+    profiles: [replication]
+    environment:
+      PGDATA: /var/lib/postgresql/18/docker
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:?Set REPLICATION_PASSWORD in .env}
+    volumes:
+      - replica_data:/var/lib/postgresql
+      - ./db/start-replica.sh:/replica/start.sh:ro
+    entrypoint: ["bash", "-c", "tr -d '\\r' < /replica/start.sh > /tmp/start.sh && exec bash /tmp/start.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  default:
+    name: phonebook-shared
+
+volumes:
+  db_data:
+  replica_data:
