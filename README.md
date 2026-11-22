@@ -8,11 +8,11 @@
 
 | Роль | Ветка | Что содержит |
 |---|---|---|
-| Backend Engineer | [`feature/ivan/backend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/ivan/backend) | Flask API, FastAPI, Docker, тесты, SQL-интеграция |
+| Backend Developer | [`feature/ivan/backend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/ivan/backend) | Flask API, FastAPI, Docker, тесты, SQL-интеграция |
 | Frontend Engineer | [`feature/darkandcryssis-eng/frontend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/darkandcryssis-eng/frontend) | HTML, CSS, JavaScript, страницы приложения |
-| Database Engineer | [`feature/danil/database-engineering`](https://github.com/ivansemkov15-ui/project-web/tree/feature/danil/database-engineering) | Копия Backend как рабочая основа, SQL-схема, настройка PostgreSQL и репликации; [список задач](https://github.com/ivansemkov15-ui/project-web/blob/feature/danil/database-engineering/db/README.md) |
+| Database Engineer / DBA | [`feature/danil/postgresql`](https://github.com/ivansemkov15-ui/project-web/tree/feature/danil/postgresql) | Только PostgreSQL, схема, индексы, роли и репликация; [список задач](https://github.com/ivansemkov15-ui/project-web/blob/feature/danil/postgresql/README.md) |
 
-**Важно:** разработка роли Database Engineer только выделена в отдельную ветку, её задачи ещё не завершены. Ветка Backend не изменена при создании Database Engineering. Для полноценной сдачи требуется объединение и проверка всех частей проекта.
+**Важно:** Backend и Database Engineering находятся в разных рабочих ветках. Backend содержит Flask/FastAPI, API и SQL-слой обращения к БД; ветка Данила — только инфраструктуру PostgreSQL, схему, индексы и репликацию. Для запуска вместе нужны обе ветки; инструкции находятся в их README. Для полноценной сдачи необходимо объединение и тестирование через `develop`.
 
 ## Архитектура
 
@@ -119,7 +119,7 @@
 
 `python -m pytest -q` — проверка маршрутов Flask с подменой функций БД и маршрутов FastAPI. Эти тесты **не заменяют** интеграционную проверку с настоящим PostgreSQL и Docker.
 
-Используемые ветки: `main`, `develop`, `feature/ivan/backend`, `feature/darkandcryssis-eng/frontend`, `feature/danil/database-engineering`. Для общей версии потребуется интеграция в `main`. Коммиты оформляются на английском, одно логическое изменение — один коммит.
+Используемые ветки: `main`, `develop`, `feature/ivan/backend`, `feature/darkandcryssis-eng/frontend`, `feature/danil/postgresql`. Для общей версии потребуется интеграция в `main`. Коммиты оформляются на английском, одно логическое изменение — один коммит.
 
 ## Безопасность и ограничения
 
