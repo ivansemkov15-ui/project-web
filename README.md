@@ -8,9 +8,9 @@
 
 | Роль | Ветка | Что содержит |
 |---|---|---|
-| Backend Engineer | [`feature/ivan/backend`](../../tree/feature/ivan/backend) | Flask API, FastAPI, Docker, тесты, SQL-интеграция |
-| Frontend Engineer | [`feature/darkandcryssis-eng/frontend`](../../tree/feature/darkandcryssis-eng/frontend) | HTML, CSS, JavaScript, страницы приложения |
-| Database Engineer | [`feature/database-engineering`](../../tree/feature/database-engineering) | Копия Backend как рабочая основа, SQL-схема, настройка PostgreSQL и репликации; [список задач](../../blob/feature/database-engineering/db/README.md) |
+| Backend Engineer | [`feature/ivan/backend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/ivan/backend) | Flask API, FastAPI, Docker, тесты, SQL-интеграция |
+| Frontend Engineer | [`feature/darkandcryssis-eng/frontend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/darkandcryssis-eng/frontend) | HTML, CSS, JavaScript, страницы приложения |
+| Database Engineer | [`feature/database-engineering`](https://github.com/ivansemkov15-ui/project-web/tree/feature/database-engineering) | Копия Backend как рабочая основа, SQL-схема, настройка PostgreSQL и репликации; [список задач](https://github.com/ivansemkov15-ui/project-web/blob/feature/database-engineering/db/README.md) |
 
 **Важно:** разработка роли Database Engineer только выделена в отдельную ветку, её задачи ещё не завершены. Ветка Backend не изменена при создании Database Engineering. Для полноценной сдачи требуется объединение и проверка всех частей проекта.
 
