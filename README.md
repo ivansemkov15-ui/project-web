@@ -11,34 +11,26 @@
 
 Схема БД: `users` → `groups`, `users` → `contacts`, `groups` → `contacts`. Три таблицы связаны внешними ключами. Повторяющиеся сведения вынесены в отдельные таблицы; структура соответствует третьей нормальной форме.
 
-## Быстрый запуск через Docker Compose
+## Запуск Backend совместно с Database Engineering
 
-Нужен Docker Desktop. В корне проекта:
+Backend и PostgreSQL теперь **разделены по рабочим веткам**. В этом дереве находятся Flask, FastAPI, API-маршруты, бизнес-логика, SQL-запросы доступа к данным (`db.py`) и тесты. Создание таблиц, настройка ролей, репликация и индексы находятся **только** в [ветке Database Engineer](https://github.com/ivansemkov15-ui/project-web/tree/feature/danil/postgresql). SQL-запросы `db.py` — часть взаимодействия Backend с базой, поэтому они остаются здесь.
 
-1. Скопировать `.env.example` в `.env`. Сгенерировать **два разных** случайных секрета командой `python -c "import secrets; print(secrets.token_urlsafe(48))"` (выполнить дважды). Записать их в `JWT_SECRET` и `APP_DB_PASSWORD`. В остальных параметрах допускаются демонстрационные значения для локального запуска. **Не добавлять `.env` в Git.**
-2. Выполнить `docker compose up --build -d`.
-3. Открыть `http://localhost:5000/health` — основной Flask-сервис.
-4. Открыть `http://localhost:8001/docs` — автоматическая документация FastAPI.
-5. Открыть `http://localhost:5000/api/about` — описание проекта.
+**Первый запуск через Docker на одном компьютере:**
 
-Остановка: `docker compose down`. Команда `docker compose down -v` **удаляет данные БД**, её не следует использовать для обычной остановки.
+1. Скачайте обе ветки в **разные соседние каталоги**: `backend/` (ветка `feature/ivan/backend`) и `database/` (ветка `feature/danil/postgresql`).
+2. В каталоге `database` скопируйте `.env.example` в `.env`, задайте отдельные случайные `DB_PASSWORD`, `APP_DB_PASSWORD`, `REPLICATION_PASSWORD`. В каталоге `backend` тоже создайте `.env`: тот же **`APP_DB_PASSWORD`**, что и в БД, плюс собственный случайный `JWT_SECRET` (минимум 32 байта). Для генерации паролей используйте `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Не публикуйте `.env`.
+3. В каталоге `database` выполните `docker compose up -d db`. Этот Compose создаёт сеть `phonebook-shared` и запускает PostgreSQL. При новом пустом томе создаются три таблицы, ограниченные роли, индексы.
+4. Затем в каталоге `backend` выполните `docker compose up --build -d core supporting`. Backend присоединяется к готовой сети `phonebook-shared` и использует PostgreSQL по адресу `db:5432`.
+5. Откройте `http://localhost:5000/health`, `http://localhost:8001/docs` и `http://localhost:5000/api/about`.
+6. Для проверки реплики в каталоге `database` выполните `docker compose --profile replication up -d db-replica`, затем `docker compose exec db-replica psql -U phonebook -d phonebook -c "SELECT pg_is_in_recovery();"` (ожидается `t`).
 
-При первом создании БД запускаются последовательно `init.sql`, `db/setup-replication.sh` и `db/setup-app-role.sh`. Последний создаёт отдельную роль `phonebook_app`, выдаёт ей только необходимые права на три таблицы и устанавливает пароль из `APP_DB_PASSWORD`; Flask не подключается как суперпользователь. Если существующий том был создан до появления этого скрипта, после `docker compose up -d db` можно однократно применить `docker compose exec db bash /docker-entrypoint-initdb.d/03-app-role.sh` (данные таблиц не удаляются). Скрипт можно запускать повторно для смены пароля приложения.
+Остановка: сначала `docker compose down` в `backend`, затем `docker compose down` в `database`. **Не выполнять `docker compose down -v`** с рабочими данными: эта команда удаляет том БД.
 
-Скрипт `init.sql` выполняется PostgreSQL **только при первом создании пустого тома**. После изменения структуры таблиц необходимо использовать миграцию либо пересоздать тестовую БД с осознанием потери данных.
+Если уже существует старая база, созданная прежним объединённым Compose, данные остаются в её старом томе: новый отдельный Compose использует **другое имя проекта и другой том**. Не удаляйте старый том. Для переноса понадобится резервная копия и восстановление — это отдельная миграция, а не автоматический перенос.
 
-## Запуск Backend через PyCharm (Python 3.13)
+### Локальный запуск Python
 
-1. Открыть папку проекта в PyCharm.
-2. В терминале проекта выполнить `python -m pip install -r requirements.txt`.
-3. Запустить PostgreSQL: `docker compose up -d db`.
-4. В одном терминале выполнить `uvicorn supporting_api:app --host 127.0.0.1 --port 8001`.
-5. В другом терминале выполнить `python app.py`.
-6. Проверить `http://127.0.0.1:5000/health`.
-
-При локальном запуске `db.py` использует адрес `postgresql://phonebook:phonebook@localhost:5432/phonebook`, если `DATABASE_URL` не задан. Если изменён `DB_PASSWORD`, необходимо также задать `DATABASE_URL` в конфигурации запуска PyCharm. `JWT_SECRET` тоже можно задать в переменных окружения. JWT_SECRET обязателен: при запуске из PyCharm его нужно задать в переменных окружения (например, в PowerShell: `$env:JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(48))")`). Без него выдача и проверка JWT-токенов не работают.
-
-**Важно:** если запущены контейнеры `core` и `supporting`, локальные команды `python app.py` и `uvicorn ...` займут те же порты. Для работы через PyCharm сначала остановите контейнеры приложения: `docker compose stop core supporting`.
+Установите зависимости: `python -m pip install -r requirements.txt`. Запустите БД через Compose из ветки Database Engineer. Для локального Flask установите переменные окружения `JWT_SECRET` и `DATABASE_URL` (адрес `127.0.0.1:5432` и пароль `APP_DB_PASSWORD`), затем запустите `python app.py`. В соседнем терминале: `uvicorn supporting_api:app --host 127.0.0.1 --port 8001`. Локальные Python-процессы не нужно запускать одновременно с контейнерами Backend на тех же портах.
 
 ## API для Frontend
 
@@ -90,21 +82,9 @@
 
 Для страницы профиля используйте `GET /api/users/me` либо `GET /<username>` с access-токеном. Кнопка обновления токена должна вызывать `POST /api/auth/refresh` с refresh-токеном и сохранять новый access-токен. Данные для диаграмм находятся в `GET /api/stats`; диаграммы реализуются на Frontend через Chart.js.
 
-## Реплика PostgreSQL (дополнительное требование из видео)
-
-Основная база запускается сервисом `db`. Дополнительная read-only реплика запускается командой:
-
-`docker compose --profile replication up --build -d`
-
-При первом старте реплика выполняет `pg_basebackup` с основной базы и запускается в режиме standby. Проверить режим можно командой:
-
-`docker compose exec db-replica psql -U phonebook -d phonebook -c "SELECT pg_is_in_recovery();"`
-
-Ожидается `t`. Реплика не используется для записи контактов. Репликация проверяется в Docker; её работу нельзя считать подтверждённой только по наличию скриптов. После запуска проверьте чтение новых данных на реплике. В реплику записи не производятся.
-
 ## Тесты и Git
 
-`python -m pytest -q` — проверка маршрутов Flask, обработки ошибок с подменой функций БД и маршрутов FastAPI. GitHub Actions также содержит отдельную проверку чистого Docker-запуска. Эти тесты **не заменяют** интеграционную проверку с настоящим PostgreSQL и Docker.
+`python -m pytest -q` — проверка маршрутов Flask, обработки ошибок с подменой функций БД и маршрутов FastAPI. Отдельная GitHub Actions-проверка должна скачивать базовую ветку Данила и запускать сервисы обоих участников. Эти тесты **не заменяют** интеграционную проверку с настоящим PostgreSQL и Docker.
 
 Рабочие ветки: `main`, `develop`, `feature/<username>/<task-name>`, `release/v1.0`. Коммиты оформляются на английском, одно логическое изменение — один коммит.
 
