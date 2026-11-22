@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 from flask import Flask, jsonify
+import psycopg
 
 from auth_api import auth_api
 from contacts_api import contacts_api
@@ -17,6 +18,19 @@ BASE_DIR = Path(__file__).resolve().parent
 def create_app():
     app = Flask(__name__, static_folder="static")
     app.json.ensure_ascii = False
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
+
+    @app.errorhandler(413)
+    def too_large(error):
+        return jsonify({"error": "Request body is too large"}), 413
+
+    @app.errorhandler(psycopg.OperationalError)
+    def database_unavailable(error):
+        return jsonify({"error": "Database is temporarily unavailable"}), 503
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        return jsonify({"error": "Internal server error"}), 500
 
     app.register_blueprint(auth_api)
     app.register_blueprint(contacts_api)
