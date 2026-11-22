@@ -10,7 +10,7 @@
 |---|---|---|
 | Backend Engineer | [`feature/ivan/backend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/ivan/backend) | Flask API, FastAPI, Docker, тесты, SQL-интеграция |
 | Frontend Engineer | [`feature/darkandcryssis-eng/frontend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/darkandcryssis-eng/frontend) | HTML, CSS, JavaScript, страницы приложения |
-| Database Engineer | [`feature/database-engineering`](https://github.com/ivansemkov15-ui/project-web/tree/feature/database-engineering) | Копия Backend как рабочая основа, SQL-схема, настройка PostgreSQL и репликации; [список задач](https://github.com/ivansemkov15-ui/project-web/blob/feature/database-engineering/db/README.md) |
+| Database Engineer | [`feature/danil/database-engineering`](https://github.com/ivansemkov15-ui/project-web/tree/feature/danil/database-engineering) | Копия Backend как рабочая основа, SQL-схема, настройка PostgreSQL и репликации; [список задач](https://github.com/ivansemkov15-ui/project-web/blob/feature/danil/database-engineering/db/README.md) |
 
 **Важно:** разработка роли Database Engineer только выделена в отдельную ветку, её задачи ещё не завершены. Ветка Backend не изменена при создании Database Engineering. Для полноценной сдачи требуется объединение и проверка всех частей проекта.
 
@@ -119,7 +119,7 @@
 
 `python -m pytest -q` — проверка маршрутов Flask с подменой функций БД и маршрутов FastAPI. Эти тесты **не заменяют** интеграционную проверку с настоящим PostgreSQL и Docker.
 
-Используемые ветки: `main`, `develop`, `feature/ivan/backend`, `feature/darkandcryssis-eng/frontend`, `feature/database-engineering`. Для общей версии потребуется интеграция в `main`. Коммиты оформляются на английском, одно логическое изменение — один коммит.
+Используемые ветки: `main`, `develop`, `feature/ivan/backend`, `feature/darkandcryssis-eng/frontend`, `feature/danil/database-engineering`. Для общей версии потребуется интеграция в `main`. Коммиты оформляются на английском, одно логическое изменение — один коммит.
 
 ## Безопасность и ограничения
 
