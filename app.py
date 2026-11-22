@@ -2,8 +2,8 @@ import json
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify
 import psycopg
+from flask import Flask, jsonify
 
 from auth_api import auth_api
 from contacts_api import contacts_api
