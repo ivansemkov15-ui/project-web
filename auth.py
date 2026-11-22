@@ -6,6 +6,13 @@ import jwt
 from flask import g, jsonify, request
 
 
+def get_jwt_secret():
+    secret = os.getenv("JWT_SECRET", "")
+    if len(secret.encode("utf-8")) < 32 or secret == "replace-with-a-long-random-secret-before-sharing":
+        raise RuntimeError("JWT_SECRET must be a random secret of at least 32 bytes")
+    return secret
+
+
 def create_token(user_id, token_type="access"):
     minutes = 30 if token_type == "access" else 10080
     now = datetime.now(timezone.utc)
@@ -15,7 +22,7 @@ def create_token(user_id, token_type="access"):
         "iat": now,
         "exp": now + timedelta(minutes=minutes),
     }
-    secret = os.getenv("JWT_SECRET", "development-secret-change-me")
+    secret = get_jwt_secret()
     return jwt.encode(payload, secret, algorithm="HS256")
 
 
@@ -28,7 +35,7 @@ def require_auth(token_type="access"):
                 return jsonify({"error": "Authorization token is required"}), 401
 
             token = header.removeprefix("Bearer ").strip()
-            secret = os.getenv("JWT_SECRET", "development-secret-change-me")
+            secret = get_jwt_secret()
             try:
                 payload = jwt.decode(
                     token,
