@@ -5,6 +5,7 @@ services:
       POSTGRES_DB: phonebook
       POSTGRES_USER: phonebook
       POSTGRES_PASSWORD: ${DB_PASSWORD:-phonebook}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
       REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replication_dev_password}
     command: ["postgres", "-c", "wal_level=replica", "-c", "max_wal_senders=5"]
     ports:
@@ -13,6 +14,7 @@ services:
       - db_data:/var/lib/postgresql
       - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
       - ./db/setup-replication.sh:/docker-entrypoint-initdb.d/02-replication.sh:ro
+      - ./db/setup-app-role.sh:/docker-entrypoint-initdb.d/03-app-role.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U phonebook -d phonebook"]
       interval: 5s
