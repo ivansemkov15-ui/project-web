@@ -2,17 +2,17 @@
 
 Учебное Full Stack веб-приложение для хранения личных контактов. Пользователь регистрируется, входит в систему, создаёт группы, добавляет контакты и управляет ими. Контакты разных пользователей изолированы.
 
-> **Статус репозитория:** здесь ведётся командная разработка. Сейчас ветка `main` содержит обзор и документацию; исходники приложения находятся в рабочих ветках ниже. **Полностью объединённая версия для сдачи пока не подготовлена.**
+> **Состояние:** приложение разрабатывается тремя участниками. `main` — общая аннотация проекта; исходники находятся в рабочих ветках. Сборка приложения через `develop` пока не завершена.
 
-## Участники и рабочие ветки
+## Участники проекта и разделение ответственности
 
-| Роль | Ветка | Что содержит |
+| Участник / роль | Ветка | Часть проекта |
 |---|---|---|
-| Backend Developer | [`feature/ivan/backend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/ivan/backend) | Flask API, FastAPI, Docker, тесты, SQL-интеграция |
-| Frontend Engineer | [`feature/darkandcryssis-eng/frontend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/darkandcryssis-eng/frontend) | HTML, CSS, JavaScript, страницы приложения |
-| Database Engineer / DBA | [`feature/danil/postgresql`](https://github.com/ivansemkov15-ui/project-web/tree/feature/danil/postgresql) | Только PostgreSQL, схема, индексы, роли и репликация; [список задач](https://github.com/ivansemkov15-ui/project-web/blob/feature/danil/postgresql/README.md) |
+| Иван — Backend Developer | [`feature/ivan/backend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/ivan/backend) | Flask, FastAPI, JWT, API, интеграция с БД, тесты |
+| Frontend Developer | [`feature/darkandcryssis-eng/frontend`](https://github.com/ivansemkov15-ui/project-web/tree/feature/darkandcryssis-eng/frontend) | Веб-интерфейс, HTML/CSS/JavaScript |
+| Данил — Database Engineer / DBA | [`feature/danil/postgresql`](https://github.com/ivansemkov15-ui/project-web/tree/feature/danil/postgresql) | SQL-модель, индексы, пользователи БД, права, PostgreSQL master/standby |
 
-**Важно:** Backend и Database Engineering находятся в разных рабочих ветках. Backend содержит Flask/FastAPI, API и SQL-слой обращения к БД; ветка Данила — только инфраструктуру PostgreSQL, схему, индексы и репликацию. Для запуска вместе нужны обе ветки; инструкции находятся в их README. Для полноценной сдачи необходимо объединение и тестирование через `develop`.
+**Одна часть не дублирует другую:** Backend не содержит установочных SQL-скриптов и контейнеров БД, Database Engineering не содержит Flask/FastAPI. В Backend сохраняется `db.py` — код SQL-доступа, без которого сервер не может работать с данными. Для проверки нужны обе ветки, их инструкции приведены ниже.
 
 ## Архитектура
 
@@ -23,35 +23,26 @@
 
 Схема БД: `users` → `groups`, `users` → `contacts`, `groups` → `contacts`. Три таблицы связаны внешними ключами. Повторяющиеся сведения вынесены в отдельные таблицы; структура соответствует третьей нормальной форме.
 
-## Быстрый запуск через Docker Compose
+## Запуск Backend совместно с Database Engineering
 
-> **Предупреждение для проверяющего.** Эти инструкции относятся к исходникам в рабочих ветках, а не к текущей `main`. На GitHub пока выявлен блокер чистого развёртывания: `core` требует `APP_DB_PASSWORD` и роль `phonebook_app`, но в `.env.example` нет этой переменной, а в `init.sql` роль ещё не создаётся. Локальная БД разработчика уже была настроена вручную. Задача исправления закреплена за Database Engineer; до её выполнения запуск проекта на новой машине не гарантирован.
+Backend и PostgreSQL теперь **разделены по рабочим веткам**. В этом дереве находятся Flask, FastAPI, API-маршруты, бизнес-логика, SQL-запросы доступа к данным (`db.py`) и тесты. Создание таблиц, настройка ролей, репликация и индексы находятся **только** в [ветке Database Engineer](https://github.com/ivansemkov15-ui/project-web/tree/feature/danil/postgresql). SQL-запросы `db.py` — часть взаимодействия Backend с базой, поэтому они остаются здесь.
 
+**Первый запуск через Docker на одном компьютере:**
 
-Нужен Docker Desktop. В корне проекта:
+1. Скачайте обе ветки в **разные соседние каталоги**: `backend/` (ветка `feature/ivan/backend`) и `database/` (ветка `feature/danil/postgresql`).
+2. В каталоге `database` скопируйте `.env.example` в `.env`, задайте отдельные случайные `DB_PASSWORD`, `APP_DB_PASSWORD`, `REPLICATION_PASSWORD`. В каталоге `backend` тоже создайте `.env`: тот же **`APP_DB_PASSWORD`**, что и в БД, плюс собственный случайный `JWT_SECRET` (минимум 32 байта). Для генерации паролей используйте `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Не публикуйте `.env`.
+3. В каталоге `database` выполните `docker compose up -d db`. Этот Compose создаёт сеть `phonebook-shared` и запускает PostgreSQL. При новом пустом томе создаются три таблицы, ограниченные роли, индексы.
+4. Затем в каталоге `backend` выполните `docker compose up --build -d core supporting`. Backend присоединяется к готовой сети `phonebook-shared` и использует PostgreSQL по адресу `db:5432`.
+5. Откройте `http://localhost:5000/health`, `http://localhost:8001/docs` и `http://localhost:5000/api/about`.
+6. Для проверки реплики в каталоге `database` выполните `docker compose --profile replication up -d db-replica`, затем `docker compose exec db-replica psql -U phonebook -d phonebook -c "SELECT pg_is_in_recovery();"` (ожидается `t`).
 
-1. После исправления инициализации роли приложения: скопировать `.env.example` в `.env` и задать обязательные переменные, включая `APP_DB_PASSWORD`. Сгенерировать секрет командой `python -c "import secrets; print(secrets.token_urlsafe(48))"` и записать результат в `JWT_SECRET` в файле `.env`. Не добавлять `.env` в Git. Для локальной демонстрации остальные значения можно оставить.
-2. Выполнить `docker compose up --build -d`.
-3. Открыть `http://localhost:5000/health` — основной Flask-сервис.
-4. Открыть `http://localhost:8001/docs` — автоматическая документация FastAPI.
-5. Открыть `http://localhost:5000/api/about` — описание проекта.
+Остановка: сначала `docker compose down` в `backend`, затем `docker compose down` в `database`. **Не выполнять `docker compose down -v`** с рабочими данными: эта команда удаляет том БД.
 
-Остановка: `docker compose down`. Команда `docker compose down -v` **удаляет данные БД**, её не следует использовать для обычной остановки.
+Если уже существует старая база, созданная прежним объединённым Compose, данные остаются в её старом томе: новый отдельный Compose использует **другое имя проекта и другой том**. Не удаляйте старый том. Для переноса понадобится резервная копия и восстановление — это отдельная миграция, а не автоматический перенос.
 
-Скрипт `init.sql` выполняется PostgreSQL **только при первом создании пустого тома**. После изменения структуры таблиц необходимо использовать миграцию либо пересоздать тестовую БД с осознанием потери данных.
+### Локальный запуск Python
 
-## Запуск Backend через PyCharm (Python 3.13)
-
-1. Открыть папку проекта в PyCharm.
-2. В терминале проекта выполнить `python -m pip install -r requirements.txt`.
-3. Запустить PostgreSQL: `docker compose up -d db`.
-4. В одном терминале выполнить `uvicorn supporting_api:app --host 127.0.0.1 --port 8001`.
-5. В другом терминале выполнить `python app.py`.
-6. Проверить `http://127.0.0.1:5000/health`.
-
-При локальном запуске `db.py` использует адрес `postgresql://phonebook:phonebook@localhost:5432/phonebook`, если `DATABASE_URL` не задан. Если изменён `DB_PASSWORD`, необходимо также задать `DATABASE_URL` в конфигурации запуска PyCharm. `JWT_SECRET` тоже можно задать в переменных окружения. JWT_SECRET обязателен: при запуске из PyCharm его нужно задать в переменных окружения (например, в PowerShell: `$env:JWT_SECRET = (python -c "import secrets; print(secrets.token_urlsafe(48))")`). Без него выдача и проверка JWT-токенов не работают.
-
-**Важно:** если запущены контейнеры `core` и `supporting`, локальные команды `python app.py` и `uvicorn ...` займут те же порты. Для работы через PyCharm сначала остановите контейнеры приложения: `docker compose stop core supporting`.
+Установите зависимости: `python -m pip install -r requirements.txt`. Запустите БД через Compose из ветки Database Engineer. Для локального Flask установите переменные окружения `JWT_SECRET` и `DATABASE_URL` (адрес `127.0.0.1:5432` и пароль `APP_DB_PASSWORD`), затем запустите `python app.py`. В соседнем терминале: `uvicorn supporting_api:app --host 127.0.0.1 --port 8001`. Локальные Python-процессы не нужно запускать одновременно с контейнерами Backend на тех же портах.
 
 ## API для Frontend
 
@@ -103,23 +94,11 @@
 
 Для страницы профиля используйте `GET /api/users/me` либо `GET /<username>` с access-токеном. Кнопка обновления токена должна вызывать `POST /api/auth/refresh` с refresh-токеном и сохранять новый access-токен. Данные для диаграмм находятся в `GET /api/stats`; диаграммы реализуются на Frontend через Chart.js.
 
-## Реплика PostgreSQL (дополнительное требование из видео)
-
-Основная база запускается сервисом `db`. Дополнительная read-only реплика запускается командой:
-
-`docker compose --profile replication up --build -d`
-
-При первом старте реплика выполняет `pg_basebackup` с основной базы и запускается в режиме standby. Проверить режим можно командой:
-
-`docker compose exec db-replica psql -U phonebook -d phonebook -c "SELECT pg_is_in_recovery();"`
-
-Ожидается `t`. Реплика не используется для записи контактов. Конфигурацию репликации необходимо дополнительно проверить на машине с Docker; здесь она подготовлена, но не прошла контейнерное тестирование.
-
 ## Тесты и Git
 
-`python -m pytest -q` — проверка маршрутов Flask с подменой функций БД и маршрутов FastAPI. Эти тесты **не заменяют** интеграционную проверку с настоящим PostgreSQL и Docker.
+`python -m pytest -q` — проверка маршрутов Flask, обработки ошибок с подменой функций БД и маршрутов FastAPI. Отдельная GitHub Actions-проверка должна скачивать базовую ветку Данила и запускать сервисы обоих участников. Эти тесты **не заменяют** интеграционную проверку с настоящим PostgreSQL и Docker.
 
-Используемые ветки: `main`, `develop`, `feature/ivan/backend`, `feature/darkandcryssis-eng/frontend`, `feature/danil/postgresql`. Для общей версии потребуется интеграция в `main`. Коммиты оформляются на английском, одно логическое изменение — один коммит.
+Рабочие ветки: `main`, `develop`, `feature/<username>/<task-name>`, `release/v1.0`. Коммиты оформляются на английском, одно логическое изменение — один коммит.
 
 ## Безопасность и ограничения
 
