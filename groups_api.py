@@ -34,6 +34,6 @@ def groups_create():
 @groups_api.delete("/api/groups/<int:group_id>")
 @require_auth()
 def groups_delete(group_id):
-    if not db.delete_group(g.user_id, group_id):
+    if group_id > 2147483647 or not db.delete_group(g.user_id, group_id):
         return jsonify({"error": "Group not found"}), 404
     return "", 204
