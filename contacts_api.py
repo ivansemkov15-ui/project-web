@@ -23,7 +23,7 @@ def validate_contact(data, required=False):
 
     if "group_id" in data or required:
         group_id = data.get("group_id")
-        if group_id is not None and (type(group_id) is not int or group_id < 1):
+        if group_id is not None and (type(group_id) is not int or group_id < 1 or group_id > 2147483647):
             return None, "group_id must be a positive integer or null"
         changes["group_id"] = group_id
 
@@ -50,7 +50,9 @@ def contacts_list():
     except ValueError:
         return jsonify({"error": "Invalid pagination or group_id"}), 400
 
-    if page < 1 or not 1 <= per_page <= 100 or (group_id is not None and group_id < 1):
+    if (page < 1 or not 1 <= per_page <= 100
+            or (page - 1) * per_page > 9223372036854775807
+            or (group_id is not None and not 1 <= group_id <= 2147483647)):
         return jsonify({"error": "Invalid pagination or group_id"}), 400
 
     sort_by = request.args.get("sort_by", "name")
@@ -59,6 +61,8 @@ def contacts_list():
         return jsonify({"error": "Invalid sorting parameters"}), 400
 
     search = request.args.get("search", "").strip()
+    if len(search) > 100:
+        return jsonify({"error": "Search must contain at most 100 characters"}), 400
     rows, total = db.list_contacts(g.user_id, search, group_id, sort_by, order, page, per_page)
     return jsonify({
         "items": rows,
@@ -91,6 +95,8 @@ def contacts_create():
 @contacts_api.get("/api/contacts/<int:contact_id>")
 @require_auth()
 def contacts_get(contact_id):
+    if contact_id > 2147483647:
+        return jsonify({"error": "Contact not found"}), 404
     contact = db.get_contact(g.user_id, contact_id)
     if contact is None:
         return jsonify({"error": "Contact not found"}), 404
@@ -100,6 +106,8 @@ def contacts_get(contact_id):
 @contacts_api.route("/api/contacts/<int:contact_id>", methods=["PUT", "PATCH"])
 @require_auth()
 def contacts_update(contact_id):
+    if contact_id > 2147483647:
+        return jsonify({"error": "Contact not found"}), 404
     changes, error = validate_contact(request.get_json(silent=True))
     if error:
         return jsonify({"error": error}), 400
@@ -121,6 +129,6 @@ def contacts_update(contact_id):
 @contacts_api.delete("/api/contacts/<int:contact_id>")
 @require_auth()
 def contacts_delete(contact_id):
-    if not db.delete_contact(g.user_id, contact_id):
+    if contact_id > 2147483647 or not db.delete_contact(g.user_id, contact_id):
         return jsonify({"error": "Contact not found"}), 404
     return "", 204
