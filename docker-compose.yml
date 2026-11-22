@@ -29,7 +29,7 @@ services:
     build: .
     command: python app.py
     environment:
-      DATABASE_URL: postgresql://phonebook:${DB_PASSWORD:-phonebook}@db:5432/phonebook
+      DATABASE_URL: postgresql://phonebook_app:${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}@db:5432/phonebook
       SUPPORTING_URL: http://supporting:8001
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
     ports:
