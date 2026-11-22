@@ -1,0 +1,78 @@
+name: Docker integration
+
+on:
+  push:
+    branches:
+      - "feature/ivan/backend"
+      - "feature/database-engineering"
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create disposable test secrets
+        run: |
+          python - <<'PY'
+          import secrets
+          with open(".env", "w", encoding="utf-8") as target:
+              for key in ("DB_PASSWORD", "APP_DB_PASSWORD", "REPLICATION_PASSWORD", "JWT_SECRET"):
+                  target.write(f"{key}={secrets.token_urlsafe(48)}\n")
+          PY
+      - name: Start clean PostgreSQL and APIs
+        run: docker compose up --build -d core supporting
+      - name: Verify database role
+        run: |
+          docker compose exec -T db psql -U phonebook -d phonebook -v ON_ERROR_STOP=1 -c "SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'phonebook_app';"
+          test "$(docker compose exec -T db psql -U phonebook -d phonebook -At -c "SELECT rolsuper FROM pg_roles WHERE rolname = 'phonebook_app';" | tr -d '\r')" = "f"
+      - name: Verify API registration and persistence
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+
+          base = "http://127.0.0.1:5000"
+          def send(path, data=None, token=None):
+              headers = {"Accept": "application/json"}
+              if data is not None:
+                  headers["Content-Type"] = "application/json"
+              if token:
+                  headers["Authorization"] = "Bearer " + token
+              req = urllib.request.Request(
+                  base + path,
+                  data=json.dumps(data).encode() if data is not None else None,
+                  headers=headers,
+              )
+              with urllib.request.urlopen(req, timeout=15) as response:
+                  return response.status, json.loads(response.read())
+
+          assert send("/health")[1]["status"] == "ok"
+          assert send("/api/auth/register", {"user_name":"ciuser", "password":"ci-password-123"})[0] == 201
+          tokens = send("/api/auth/login", {"user_name":"ciuser", "password":"ci-password-123"})[1]
+          token = tokens["access_token"]
+          group = send("/api/groups", {"name":"CI group"}, token)[1]
+          contact = send("/api/contacts", {"name":"CI contact", "phone":"1234567", "group_id":group["id"]}, token)[1]
+          assert contact["name"] == "CI contact"
+          assert send("/api/contacts", token=token)[1]["total"] == 1
+          PY
+      - name: Start and verify standby
+        run: |
+          docker compose --profile replication up -d db-replica
+          for i in $(seq 1 45); do
+            if docker compose exec -T db-replica psql -U phonebook -d phonebook -At -c "SELECT pg_is_in_recovery();" 2>/dev/null | grep -qx t; then
+              break
+            fi
+            sleep 2
+          done
+          test "$(docker compose exec -T db-replica psql -U phonebook -d phonebook -At -c "SELECT pg_is_in_recovery();" | tr -d '\r')" = "t"
+          test "$(docker compose exec -T db-replica psql -U phonebook -d phonebook -At -c "SELECT COUNT(*) FROM contacts;" | tr -d '\r')" = "1"
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose --profile replication logs --tail=150
+      - name: Stop disposable containers
+        if: always()
+        run: docker compose --profile replication down -v
