@@ -1,0 +1,39 @@
+// PostgreSQL schema for dbdiagram.io. The executable definition is in init.sql.
+// PostgreSQL-specific ON DELETE SET NULL (group_id) for the composite FK
+// cannot be represented fully by DBML; use init.sql for exact behavior.
+
+Table users {
+  id integer [pk, increment]
+  user_name varchar(50) [not null, unique]
+  password_hash text [not null]
+}
+
+Table groups {
+  id integer [pk, increment]
+  user_id integer [not null]
+  name varchar(60) [not null]
+
+  indexes {
+    (user_id, name) [unique]
+    (user_id, id) [unique]
+  }
+}
+
+Table contacts {
+  id integer [pk, increment]
+  user_id integer [not null]
+  group_id integer
+  name varchar(100) [not null]
+  phone varchar(30) [not null]
+  created_at timestamptz [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (user_id, name)
+    (user_id, created_at)
+    group_id
+  }
+}
+
+Ref: groups.user_id > users.id [delete: cascade]
+Ref: contacts.user_id > users.id [delete: cascade]
+Ref: contacts.(user_id, group_id) > groups.(user_id, id)
