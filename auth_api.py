@@ -21,8 +21,8 @@ def register():
         return jsonify({"error": "user_name must contain 3-50 characters"}), 400
     if not all(char.isalnum() or char == "_" for char in user_name):
         return jsonify({"error": "user_name may contain letters, digits and _"}), 400
-    if not isinstance(password, str) or len(password) < 8:
-        return jsonify({"error": "password must contain at least 8 characters"}), 400
+    if not isinstance(password, str) or not 8 <= len(password) <= 1024:
+        return jsonify({"error": "password must contain 8-1024 characters"}), 400
 
     try:
         user = db.create_user(user_name, generate_password_hash(password))
@@ -39,6 +39,8 @@ def login():
         return jsonify({"error": "JSON object is required"}), 400
     if not isinstance(data.get("user_name"), str) or not isinstance(data.get("password"), str):
         return jsonify({"error": "user_name and password are required"}), 400
+    if len(data["user_name"]) > 50 or len(data["password"]) > 1024:
+        return jsonify({"error": "Incorrect user_name or password"}), 401
     user = db.get_user_by_name(data["user_name"])
     if user is None or not check_password_hash(user["password_hash"], data.get("password") or ""):
         return jsonify({"error": "Incorrect user_name or password"}), 401
