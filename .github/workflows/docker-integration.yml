@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - "feature/ivan/backend"
-      - "feature/database-engineering"
+      - "feature/danil/postgresql"
   pull_request:
     branches:
       - develop
@@ -15,20 +15,31 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/danil/postgresql
+          path: database
       - name: Create disposable test secrets
         run: |
           python - <<'PY'
           import secrets
-          with open(".env", "w", encoding="utf-8") as target:
-              for key in ("DB_PASSWORD", "APP_DB_PASSWORD", "REPLICATION_PASSWORD", "JWT_SECRET"):
+          app_secret = secrets.token_urlsafe(48)
+          with open("database/.env", "w", encoding="utf-8") as target:
+              for key in ("DB_PASSWORD", "REPLICATION_PASSWORD"):
                   target.write(f"{key}={secrets.token_urlsafe(48)}\n")
+              target.write(f"APP_DB_PASSWORD={app_secret}\n")
+          with open(".env", "w", encoding="utf-8") as target:
+              target.write(f"APP_DB_PASSWORD={app_secret}\n")
+              target.write(f"JWT_SECRET={secrets.token_urlsafe(48)}\n")
           PY
       - name: Start clean PostgreSQL and APIs
-        run: docker compose up --build -d core supporting
+        run: |
+          docker compose -f database/docker-compose.yml up -d db
+          docker compose up --build -d core supporting
       - name: Verify database role
         run: |
-          docker compose exec -T db psql -U phonebook -d phonebook -v ON_ERROR_STOP=1 -c "SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'phonebook_app';"
-          test "$(docker compose exec -T db psql -U phonebook -d phonebook -At -c "SELECT rolsuper FROM pg_roles WHERE rolname = 'phonebook_app';" | tr -d '\r')" = "f"
+          docker compose -f database/docker-compose.yml exec -T db psql -U phonebook -d phonebook -v ON_ERROR_STOP=1 -c "SELECT rolname, rolsuper FROM pg_roles WHERE rolname = 'phonebook_app';"
+          test "$(docker compose -f database/docker-compose.yml exec -T db psql -U phonebook -d phonebook -At -c "SELECT rolsuper FROM pg_roles WHERE rolname = 'phonebook_app';" | tr -d '\r')" = "f"
       - name: Verify API registration and persistence
         run: |
           python - <<'PY'
@@ -61,18 +72,22 @@ jobs:
           PY
       - name: Start and verify standby
         run: |
-          docker compose --profile replication up -d db-replica
+          docker compose -f database/docker-compose.yml --profile replication up -d db-replica
           for i in $(seq 1 45); do
-            if docker compose exec -T db-replica psql -U phonebook -d phonebook -At -c "SELECT pg_is_in_recovery();" 2>/dev/null | grep -qx t; then
+            if docker compose -f database/docker-compose.yml exec -T db-replica psql -U phonebook -d phonebook -At -c "SELECT pg_is_in_recovery();" 2>/dev/null | grep -qx t; then
               break
             fi
             sleep 2
           done
-          test "$(docker compose exec -T db-replica psql -U phonebook -d phonebook -At -c "SELECT pg_is_in_recovery();" | tr -d '\r')" = "t"
-          test "$(docker compose exec -T db-replica psql -U phonebook -d phonebook -At -c "SELECT COUNT(*) FROM contacts;" | tr -d '\r')" = "1"
+          test "$(docker compose -f database/docker-compose.yml exec -T db-replica psql -U phonebook -d phonebook -At -c "SELECT pg_is_in_recovery();" | tr -d '\r')" = "t"
+          test "$(docker compose -f database/docker-compose.yml exec -T db-replica psql -U phonebook -d phonebook -At -c "SELECT COUNT(*) FROM contacts;" | tr -d '\r')" = "1"
       - name: Show container logs on failure
         if: failure()
-        run: docker compose --profile replication logs --tail=150
+        run: |
+          docker compose logs --tail=150
+          docker compose -f database/docker-compose.yml --profile replication logs --tail=150
       - name: Stop disposable containers
         if: always()
-        run: docker compose --profile replication down -v
+        run: |
+          docker compose down
+          docker compose -f database/docker-compose.yml --profile replication down -v
