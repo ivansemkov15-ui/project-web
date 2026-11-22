@@ -1,4 +1,5 @@
 import hashlib
+import os
 
 import jwt
 import pytest
@@ -8,6 +9,11 @@ import db
 from app import create_app
 from auth import create_token
 from supporting_api import app as supporting_app
+
+
+@pytest.fixture(autouse=True)
+def jwt_secret(monkeypatch):
+    monkeypatch.setenv("JWT_SECRET", "unit-test-secret-0123456789abcdef0123456789abcdef")
 
 
 @pytest.fixture
@@ -114,8 +120,20 @@ def test_supporting_service():
 
 def test_jwt_contains_user_id():
     token = create_token(15)
-    payload = jwt.decode(token, "development-secret-change-me", algorithms=["HS256"])
+    payload = jwt.decode(token, os.environ["JWT_SECRET"], algorithms=["HS256"])
     assert payload["sub"] == "15"
+
+
+def test_missing_jwt_secret(monkeypatch):
+    monkeypatch.delenv("JWT_SECRET", raising=False)
+    with pytest.raises(RuntimeError, match="JWT_SECRET"):
+        create_token(1)
+
+
+def test_reject_placeholder_jwt_secret(monkeypatch):
+    monkeypatch.setenv("JWT_SECRET", "replace-with-a-long-random-secret-before-sharing")
+    with pytest.raises(RuntimeError, match="JWT_SECRET"):
+        create_token(1)
 
 
 def test_contacts_crud(client, monkeypatch):
