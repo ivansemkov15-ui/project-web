@@ -98,7 +98,7 @@ def list_contacts(user_id, search, group_id, sort_by, order, page, per_page):
 
     rows = query(
         "SELECT c.id, c.name, c.phone, c.group_id, g.name AS group_name, c.created_at "
-        "FROM contacts c LEFT JOIN groups g ON c.group_id = g.id "
+        "FROM contacts c LEFT JOIN groups g ON c.group_id = g.id AND c.user_id = g.user_id "
         f"WHERE {where} ORDER BY {column} {direction}, c.id ASC LIMIT %s OFFSET %s",
         tuple(params + [per_page, offset]),
     )
@@ -108,7 +108,7 @@ def list_contacts(user_id, search, group_id, sort_by, order, page, per_page):
 def get_contact(user_id, contact_id):
     return query(
         "SELECT c.id, c.name, c.phone, c.group_id, g.name AS group_name, c.created_at "
-        "FROM contacts c LEFT JOIN groups g ON c.group_id = g.id "
+        "FROM contacts c LEFT JOIN groups g ON c.group_id = g.id AND c.user_id = g.user_id "
         "WHERE c.user_id = %s AND c.id = %s",
         (user_id, contact_id),
         one=True,

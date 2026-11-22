@@ -8,16 +8,20 @@ CREATE TABLE groups (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(60) NOT NULL,
-    UNIQUE (user_id, name)
+    UNIQUE (user_id, name),
+    CONSTRAINT groups_user_id_id_key UNIQUE (user_id, id)
 );
 
 CREATE TABLE contacts (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL,
+    group_id INTEGER,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(30) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT contacts_user_id_group_id_fkey
+        FOREIGN KEY (user_id, group_id) REFERENCES groups(user_id, id)
+        ON DELETE SET NULL (group_id)
 );
 
 CREATE INDEX contacts_user_name_idx ON contacts(user_id, name);

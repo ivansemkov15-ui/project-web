@@ -1,10 +1,12 @@
 from flask import Blueprint, g, jsonify, request
+from psycopg.errors import ForeignKeyViolation
 
 import db
 from auth import require_auth
 
 
 contacts_api = Blueprint("contacts_api", __name__)
+CONTACT_GROUP_CONSTRAINT = "contacts_user_id_group_id_fkey"
 
 
 def validate_contact(data, required=False):
@@ -77,7 +79,12 @@ def contacts_create():
     if group_error:
         return group_error
 
-    contact = db.create_contact(g.user_id, changes["name"], changes["phone"], changes["group_id"])
+    try:
+        contact = db.create_contact(g.user_id, changes["name"], changes["phone"], changes["group_id"])
+    except ForeignKeyViolation as error:
+        if error.diag.constraint_name != CONTACT_GROUP_CONSTRAINT:
+            raise
+        return jsonify({"error": "Group not found"}), 400
     return jsonify(db.get_contact(g.user_id, contact["id"])), 201
 
 
@@ -100,7 +107,12 @@ def contacts_update(contact_id):
     if group_error:
         return group_error
 
-    updated = db.update_contact(g.user_id, contact_id, changes)
+    try:
+        updated = db.update_contact(g.user_id, contact_id, changes)
+    except ForeignKeyViolation as error:
+        if error.diag.constraint_name != CONTACT_GROUP_CONSTRAINT:
+            raise
+        return jsonify({"error": "Group not found"}), 400
     if updated is None:
         return jsonify({"error": "Contact not found"}), 404
     return jsonify(db.get_contact(g.user_id, contact_id))

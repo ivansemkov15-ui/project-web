@@ -1,9 +1,11 @@
 import hashlib
 import os
+from types import SimpleNamespace
 
 import jwt
 import pytest
 from fastapi.testclient import TestClient
+from psycopg.errors import ForeignKeyViolation
 
 import db
 from app import create_app
@@ -169,3 +171,41 @@ def test_reject_other_users_group(client, monkeypatch):
         headers=headers,
     )
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    ("method", "url", "write"),
+    [
+        ("POST", "/api/contacts", "create_contact"),
+        ("PUT", "/api/contacts/5", "update_contact"),
+        ("PATCH", "/api/contacts/5", "update_contact"),
+    ],
+)
+@pytest.mark.parametrize(
+    "constraint_name",
+    ["contacts_user_id_group_id_fkey", "contacts_user_id_fkey"],
+)
+def test_contact_group_foreign_key(client, monkeypatch, method, url, write, constraint_name):
+    class WriteViolation(ForeignKeyViolation):
+        @property
+        def diag(self):
+            return SimpleNamespace(constraint_name=constraint_name)
+
+    def fail_write(*args):
+        raise WriteViolation()
+
+    monkeypatch.setattr(db, "group_exists", lambda user_id, group_id: True)
+    monkeypatch.setattr(db, write, fail_write)
+    request_options = {
+        "method": method,
+        "json": {"name": "Anna", "phone": "123", "group_id": 42},
+        "headers": {"Authorization": f"Bearer {create_token(1)}"},
+    }
+
+    if constraint_name == "contacts_user_id_group_id_fkey":
+        response = client.open(url, **request_options)
+        assert response.status_code == 400
+        assert response.json == {"error": "Group not found"}
+    else:
+        with pytest.raises(WriteViolation):
+            client.open(url, **request_options)
